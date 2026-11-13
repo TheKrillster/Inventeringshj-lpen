@@ -10,6 +10,22 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Packa upp zip (om projektet laddats upp som zip)
+        run: |
+          shopt -s nullglob
+          for z in *.zip; do
+            echo "Packar upp $z"
+            unzip -o -q "$z" -d _unzip
+          done
+
+      - name: Hitta projektet
+        id: proj
+        run: |
+          f=$(find . -name settings.gradle.kts -not -path "*/build/*" | awk '{ print length, $0 }' | sort -n | head -1 | cut -d' ' -f2-)
+          if [ -z "$f" ]; then echo "Hittar inget projekt (settings.gradle.kts saknas)"; ls -la; exit 1; fi
+          echo "dir=$(dirname "$f")" >> "$GITHUB_OUTPUT"
+          echo "Projektet ligger i $(dirname "$f")"
+
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -20,9 +36,9 @@ jobs:
           gradle-version: "8.9"
 
       - name: Bygg
-        run: gradle assembleDebug --no-daemon --stacktrace
+        run: gradle -p "${{ steps.proj.outputs.dir }}" assembleDebug --no-daemon --stacktrace
 
       - uses: actions/upload-artifact@v4
         with:
           name: Inventeringshjalpen-apk
-          path: app/build/outputs/apk/debug/*.apk
+          path: "**/build/outputs/apk/debug/*.apk"
